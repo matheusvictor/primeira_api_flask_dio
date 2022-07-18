@@ -1,8 +1,10 @@
 import json
 
 from flask import Flask, jsonify, request
+from flask_restful import Resource, Api
 
 app = Flask(__name__)
+api = Api(app)
 
 lista_tarefas = [
     {
@@ -20,47 +22,39 @@ lista_tarefas = [
 ]
 
 
-@app.route('/', methods=['GET'])
-def index():
-    return jsonify(lista_tarefas)
+class ListaTarefas(Resource):
+    def get(self):
+        return lista_tarefas
 
 
-@app.route('/tarefa/<int:id>', methods=['GET', 'DELETE', 'PUT'])
-def tarefa(id):
-    try:
-        response = lista_tarefas[id]
-
-        if request.method == 'DELETE':
-            lista_tarefas.pop(id)
-            mensagem = f'Tarefa de ID {id} excluída com sucesso!'
+class Tarefas(Resource):
+    def get(self, id):
+        try:
+            response = lista_tarefas[id]
+        except IndexError:
+            mensagem = f'Não existe tarefa com ID {id} na lista de afazeres.'
             response = {'status': f'{mensagem}'}
-        elif request.method == 'PUT':
-            status_atualizado = json.loads(request.data)
-            lista_tarefas[id]['status'] = status_atualizado['status']
-            mensagem = f'Status da tarefa de ID {id} atualizado com sucesso!'
+        except Exception:
+            mensagem = f'Erro desconhecido.'
             response = {'status': f'{mensagem}'}
+        return response
 
-    except IndexError:
-        mensagem = f'Não existe tarefa com ID {id} na lista de afazeres.'
+    def put(self, id):
+        status_atualizado = json.loads(request.data)
+        lista_tarefas[id]['status'] = status_atualizado['status']
+        mensagem = f'Status da tarefa de ID {id} atualizado com sucesso!'
         response = {'status': f'{mensagem}'}
-    except Exception:
-        mensagem = f'Erro desconhecido.'
+        return response
+
+    def delete(self, id):
+        lista_tarefas.pop(id)
+        mensagem = f'Tarefa de ID {id} excluída com sucesso!'
         response = {'status': f'{mensagem}'}
+        return response
 
-    return jsonify(response)
 
-
-@app.route('/cadastrar', methods=['POST'])
-def cadastrar_tarefa():
-    payload = json.loads(request.data)
-    nova_tarefa = {
-        'id': len(lista_tarefas) + 1,
-        'responsavel': payload['responsavel'],
-        'tarefa': payload['tarefa'],
-        'status': payload['status']
-    }
-    return nova_tarefa
-
+api.add_resource(ListaTarefas, '/')  # rota para listagem de todas as tarefas
+api.add_resource(Tarefas, '/tarefa/<int:id>')  # rota para listagem de tarefas
 
 if __name__ == '__main__':
     app.run(debug=True)
